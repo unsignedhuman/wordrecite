@@ -70,9 +70,11 @@ public class Dict {
             //将String[] 转换为String
             String[] explain = w.getExplain();
             String explains = new String();
-            for (int i = 0; i < explain.length; i++) {
-                explains += explain[i];
+            int i;
+            for (i = 0; explain[i]!= null; i++) {
+                explains += explain[i] + '\n';
             }
+            explains = explains.substring(0, explains.length()-1);
             values.put("explains", explains);
             cursor=dbR.query("wordList", new String[]{"word"}, "word=?", new String[]{w.getWord()}, null, null, null);
             if(cursor.getCount()>0){
@@ -84,24 +86,38 @@ public class Dict {
             }else{
                 dbW.insert("wordList", null, values);  //这里可能会发生空指针异常，到时候考虑
             }
-            cursor=dbR.query("wordList", new String[]{"word"}, "word=?", new String[]{w.getWord()}, null, null, null);
+            cursor.close();
+            cursor=dbR.query("wordList", new String[]{"id"}, "word=?", new String[]{w.getWord()}, null, null, null);
+            if(cursor.moveToFirst() == false){
+                return;   //没找到任何结果为空
+            }
             Integer wordId = cursor.getInt(cursor.getColumnIndex("id"));
-            String[][] keyValue = w.getKeyValue();
-            for (int i = 0; keyValue[i][0] != null; i++) {
+            String [][] keyValue = w.getKeyValue();
+            for (i = 0;keyValue != null; i++) {
+                values_KV.put("word_id",wordId);
+                values_KV.put("word_key",keyValue[i][0]);
+                String wordValue = new String();
                 for(int j = 1; keyValue[i][j] != null; j++) {
-                    values_KV.put("word_id",wordId);
-                    values_KV.put("word_key",keyValue[i][0]);
-                    values_KV.put("word_value",keyValue[i][j]);
-                    cursor=dbR.query("webKV", new String[]{"word_key","word_id"}, "word_key=?,word_id=?", new String[]{keyValue[i][0],wordId.toString()}  , null, null, null);
-                    if(cursor.getCount()>0){
-                        if(isOverWrite==false)
-                            return;
-                        else{
-                            dbW.update("webKV", values_KV, "word_key=?,word_id=?",new String[]{ keyValue[i][0],wordId.toString()});
-                        }
-                    }else{
-                        dbW.insert("webKV", null, values_KV);  //这里可能会发生空指针异常，到时候考虑
+                    wordValue += keyValue[i][j] + '\n';
+                    if (keyValue[i][j+1] == null) {
+                        break;
                     }
+                }
+                wordValue = wordValue.substring(0, wordValue.length()-1);
+                values_KV.put("word_value",wordValue);
+                cursor.close();
+                cursor=dbR.query("webKV", new String[]{"word_key","word_id","word_value"}, "word_key=? and word_id=? and word_value=?", new String[]{values_KV.getAsString("word_key"),wordId.toString(),values_KV.getAsString("word_value")}  , null, null, null);
+                if(cursor.getCount()>0){
+                    if(isOverWrite==false)
+                        return;
+                    else{
+                         dbW.update("webKV", values_KV, "word_key=?,word_id=?",new String[]{ w.getKeyValue()[i][0],wordId.toString()});
+                    }
+                }else{
+                       dbW.insert("webKV", null, values_KV);  //这里可能会发生空指针异常，到时候考虑
+                    }
+                if(keyValue[i+1][0] == null) {
+                    break;
                 }
             }
         }catch(Exception e){
@@ -139,7 +155,7 @@ public class Dict {
         String[] columns_KV=new String[]{"word_key","word_value"};
 
         String[] strArray=new String[7];
-        String[][] strKV = new String[100][100];
+        String[][] strKV = new String[10][10];
         Cursor cursor=dbR.query("wordList", columns, "word=?", new String[]{searchedWord}, null, null, null);
         while(cursor.moveToNext()){
             for(int i=0;i<strArray.length;i++){
@@ -147,24 +163,19 @@ public class Dict {
             }
         }
         cursor=dbR.query("webKV", columns_KV, "word_id=?", new String[]{strArray[0]}, null, null, null);
-        int i = 0,j = 1;
+        int i = 0;
         while(cursor.moveToNext()){
             if(strKV[i][0] == null) {
+                String[] temp =cursor.getString(cursor.getColumnIndex("word_value")).split("\\\n");
+                for (int j = temp.length; j > 0; j--) {
+                    strKV[i][j] = temp[j-1];
+                }
                 strKV[i][0] = cursor.getString(cursor.getColumnIndex("word_key"));
-                strKV[i][j++]=cursor.getString(cursor.getColumnIndex("word_value"));
             }
-            else if(cursor.getString(cursor.getColumnIndex("word_key")) != strKV[i][0]) {
-                i++;
-                j=1;
-                strKV[i][0] = cursor.getString(cursor.getColumnIndex("word_key"));
-                strKV[i][j++]=cursor.getString(cursor.getColumnIndex("word_value"));
-            }
-            else
-                strKV[i][j++]=cursor.getString(cursor.getColumnIndex("word_value"));
         }
         cursor.close();
         //将String 转换为String[]
-       String[] explain = strArray[4].split("\\\\n");
+       String[] explain = strArray[4].split("\\\n");
        w=new WordValue(strArray[1],strArray[2],strArray[3],explain,strArray[5],strArray[6],strKV);
        return w;
 

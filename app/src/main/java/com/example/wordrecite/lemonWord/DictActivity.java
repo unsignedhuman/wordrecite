@@ -97,7 +97,7 @@ public class DictActivity extends AppCompatActivity {
             searchedWord="";
         //设置查找的文本
         textDictWord.setText(searchedWord);*/
-        this.searchedWord="hello";
+        this.searchedWord="compromise";
     }
 
     /**
@@ -107,15 +107,21 @@ public class DictActivity extends AppCompatActivity {
     public void searchWord(String word){
         //调用该方法后首先初始化界面
         dictHandler.post(new RunnableDictSetTextInterface(word,"", "", null, null ));
-        w=null;    //对w进行初始化
-        if(dict.isWordExist(word)==false){  //数据库中没有单词记录，从网络上进行同步
-            if((w=dict.getWordFromInternet(word))==null ||w.getWord().equals("")){
+        WordValue w = new WordValue();
+        if (dict.isWordExist(word)==false){  //数据库中没有单词记录，从网络上进行同步
+            w = dict.getWordFromInternet(word);
+
+            if(w ==null ||w.getWord().equals("")){
                 return;
             }
             //错词不添加进词典
             dict.insertWordToDict(w, true);   //默认添加到词典中
-        }//能走到这一步说明从网上同步成功，数据库中一定存在单词记录
-        w=dict.getWordFromDict(word);
+        }
+        //能走到这一步说明从网上同步成功，数据库中一定存在单词记录
+        else{
+            w = dict.getWordFromDict(word);
+        }
+
         if(w==null){             //这里又进一步做了保护,若词典中还是没有，那么用空字符串代替
             w=new WordValue();
         }
@@ -212,7 +218,7 @@ public class DictActivity extends AppCompatActivity {
         String phoSymEng=null;
         String phoSymUSA=null;
         String[] explains=null;
-        String[][] keyValue=null;
+        String[][] keyValue= null;
 
 
         public RunnableDictSetTextInterface(String searchStr, String phoSymEng,
@@ -240,21 +246,19 @@ public class DictActivity extends AppCompatActivity {
             }else {
                 explain ="";
             }
-            textDictInterpret.setText(explain);
             if(keyValue==null){     //对链表为空进行防护
                 //    textDictSentence.setText("");
                 return;
             }
 
             ArrayList<HashMap<String,Object>> list=new ArrayList<HashMap<String,Object>>();
-            for (int i = 0; keyValue[i][0] != null; i++) {
-                    //            sb.append(sentList.get(i)+"\n"+sentInChineseList.get(i)+"\n\n");
+            for (int i = 0; keyValue[i] != null; i++) {
                 HashMap<String, Object> map = new HashMap<String, Object>();
                 List<String> webValue = new ArrayList<>();
                 for (int j = 1; keyValue[i][j] != null; j++) {
                         webValue.add(keyValue[i][j]);
                 }
-                map.put("phrase", keyValue[i][0] + webValue);
+                map.put(keyValue[i][0] ,  webValue);
                 list.add(map);
             }
 
